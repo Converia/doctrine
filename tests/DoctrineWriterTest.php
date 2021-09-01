@@ -2,10 +2,14 @@
 
 namespace Port\Doctrine\Tests;
 
+use Doctrine\ODM\MongoDB;
+use Doctrine\DBAL;
+use MongoDB\Collection;
+use PHPUnit\Framework\TestCase;
 use Port\Doctrine\DoctrineWriter;
 use Port\Doctrine\Tests\Fixtures\Entity\TestEntity;
 
-class DoctrineWriterTest extends \PHPUnit_Framework_TestCase
+class DoctrineWriterTest extends TestCase
 {
     const TEST_ENTITY = 'Port\Doctrine\Tests\Fixtures\Entity\TestEntity';
 
@@ -49,7 +53,7 @@ class DoctrineWriterTest extends \PHPUnit_Framework_TestCase
     public function testUnsupportedDatabaseTypeException()
     {
         $this->expectException('Port\Doctrine\Exception\UnsupportedDatabaseTypeException');
-        $em = $this->getMockBuilder('Doctrine\Common\Persistence\ObjectManager')
+        $em = $this->getMockBuilder('Doctrine\Persistence\ObjectManager')
             ->getMock();
         new DoctrineWriter($em, 'Port:TestEntity');
     }
@@ -138,17 +142,19 @@ class DoctrineWriterTest extends \PHPUnit_Framework_TestCase
 
     protected function getMongoDocumentManager()
     {
-        $dm = $this->getMockBuilder('Doctrine\ODM\MongoDB\DocumentManager')
-            ->setMethods(array('getRepository', 'getClassMetadata', 'persist', 'flush', 'clear', 'getConnection', 'getDocumentCollection'))
+        $dm = $this->getMockBuilder(MongoDB\DocumentManager::class)
+            ->onlyMethods(array('getRepository', 'getClassMetadata', 'persist', 'flush', 'clear', 'getDocumentCollection'))
+            ->addMethods(['getConnection'])
             ->disableOriginalConstructor()
             ->getMock();
 
-        $repo = $this->getMockBuilder('Doctrine\ODM\MongoDB\DocumentRepository')
+        $repo = $this->getMockBuilder(MongoDB\Repository\DocumentRepository::class)
             ->disableOriginalConstructor()
             ->getMock();
 
-        $metadata = $this->getMockBuilder('Doctrine\ODM\MongoDB\Mapping\ClassMetadata')
-            ->setMethods(array('getName', 'getFieldNames', 'getAssociationNames', 'setFieldValue', 'getAssociationMappings'))
+        $metadata = $this->getMockBuilder(MongoDB\Mapping\ClassMetadata::class)
+            ->onlyMethods(array('getName', 'getFieldNames', 'getAssociationNames', 'setFieldValue'))
+            ->addMethods(['getAssociationMappings'])
             ->disableOriginalConstructor()
             ->getMock();
 
@@ -168,12 +174,12 @@ class DoctrineWriterTest extends \PHPUnit_Framework_TestCase
             ->method('getAssociationMappings')
             ->will($this->returnValue(array(array('fieldName' => 'firstAssociation','targetEntity' => self::TEST_ENTITY))));
 
-        $configuration = $this->getMockBuilder('Doctrine\DBAL\Configuration')
+        $configuration = $this->getMockBuilder(DBAL\Configuration::class)
             ->setMethods(array('getConnection'))
             ->disableOriginalConstructor()
             ->getMock();
 
-        $connection = $this->getMockBuilder('Doctrine\DBAL\Connection')
+        $connection = $this->getMockBuilder(DBAL\Configuration::class)
             ->setMethods(array('getConfiguration', 'getDatabasePlatform', 'getTruncateTableSQL', 'executeQuery'))
             ->disableOriginalConstructor()
             ->getMock();
@@ -204,13 +210,9 @@ class DoctrineWriterTest extends \PHPUnit_Framework_TestCase
             ->method('getConnection')
             ->will($this->returnValue($connection));
 
-        $documentCollection = $this->getMockBuilder('\MongoCollection')
+        $documentCollection = $this->getMockBuilder(Collection::class)
             ->disableOriginalConstructor()
             ->getMock();
-
-        $documentCollection
-            ->expects($this->once())
-            ->method('remove');
 
         $dm->expects($this->once())
             ->method('getDocumentCollection')
